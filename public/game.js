@@ -120,7 +120,6 @@ class BrawlerGame {
                 </div>
             </div>
             <div class="control-zone right-zone">
-                <button class="action-btn jump-btn" data-action="jump">SKOK</button>
                 <button class="action-btn attack-btn" data-action="attack">ATAK</button>
             </div>
         `;
@@ -143,7 +142,6 @@ class BrawlerGame {
                 else if (action === 'right') this.input.right = true;
                 else if (action === 'up') { this.input.up = true; this.input.jump = true; }
                 else if (action === 'down') this.input.down = true;
-                else if (action === 'jump') this.input.jump = true;
                 else if (action === 'attack') this.input.attack = true;
 
                 this.sendInput();
@@ -168,7 +166,6 @@ class BrawlerGame {
                 else if (action === 'right') this.input.right = false;
                 else if (action === 'up') { this.input.up = false; this.input.jump = false; }
                 else if (action === 'down') this.input.down = false;
-                else if (action === 'jump') this.input.jump = false;
                 else if (action === 'attack') this.input.attack = false;
 
                 this.sendInput();
@@ -194,7 +191,6 @@ class BrawlerGame {
                 else if (oldAction === 'right') this.input.right = false;
                 else if (oldAction === 'up') { this.input.up = false; this.input.jump = false; }
                 else if (oldAction === 'down') this.input.down = false;
-                else if (oldAction === 'jump') this.input.jump = false;
                 else if (oldAction === 'attack') this.input.attack = false;
 
                 // Activate new action if valid
@@ -208,7 +204,6 @@ class BrawlerGame {
                     else if (newAction === 'right') this.input.right = true;
                     else if (newAction === 'up') { this.input.up = true; this.input.jump = true; }
                     else if (newAction === 'down') this.input.down = true;
-                    else if (newAction === 'jump') this.input.jump = true;
                     else if (newAction === 'attack') this.input.attack = true;
                 } else {
                     this.activeTouches.delete(touch.identifier);
@@ -387,25 +382,23 @@ class BrawlerGame {
         if (e.repeat) return;
 
         switch (e.code) {
+            // Movement - WASD
             case 'KeyA':
-            case 'ArrowLeft':
                 this.input.left = true;
                 break;
             case 'KeyD':
-            case 'ArrowRight':
                 this.input.right = true;
                 break;
             case 'KeyW':
-            case 'ArrowUp':
                 this.input.up = true;
                 this.input.jump = true;
                 break;
             case 'KeyS':
-            case 'ArrowDown':
                 this.input.down = true;
                 break;
+            // Attack - Space or J
             case 'Space':
-                this.input.jump = true;
+                this.input.attack = true;
                 e.preventDefault();
                 break;
             case 'KeyJ':
@@ -418,25 +411,23 @@ class BrawlerGame {
 
     handleKeyUp(e) {
         switch (e.code) {
+            // Movement - WASD
             case 'KeyA':
-            case 'ArrowLeft':
                 this.input.left = false;
                 break;
             case 'KeyD':
-            case 'ArrowRight':
                 this.input.right = false;
                 break;
             case 'KeyW':
-            case 'ArrowUp':
                 this.input.up = false;
                 this.input.jump = false;
                 break;
             case 'KeyS':
-            case 'ArrowDown':
                 this.input.down = false;
                 break;
+            // Attack - Space or J
             case 'Space':
-                this.input.jump = false;
+                this.input.attack = false;
                 break;
             case 'KeyJ':
                 this.input.attack = false;

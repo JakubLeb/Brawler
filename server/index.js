@@ -534,10 +534,10 @@ server.listen(PORT, () => {
 ║   Server running on http://localhost:${PORT}               ║
 ║                                                          ║
 ║   Controls:                                              ║
-║   - A/D or Arrow Keys: Move                              ║
-║   - W/Up or Space: Jump (double jump available)         ║
+║   - A/W/S/D or Arrow Keys: Move                              ║
+║   - W/Up: Jump (double jump available)         ║
 ║   - S/Down: Fast fall / Drop through platforms          ║
-║   - J or Left Click: Attack (hold to charge)            ║
+║   - J or space bar: Attack (hold to charge)            ║
 ║                                                          ║
 ║   Goal: Knock opponents off the platforms!               ║
 ╚══════════════════════════════════════════════════════════╝
