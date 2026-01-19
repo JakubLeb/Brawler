@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>BRAWLER ARENA</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #00ff88;
+            --secondary: #ff00aa;
+            --accent: #00aaff;
+            --dark: #0a0a12;
+            --darker: #050508;
+            --glow: 0 0 20px var(--primary), 0 0 40px var(--primary);
+        }
+
+        body {
+            background: var(--darker);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Rajdhani', sans-serif;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Animated background */
+        .bg-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 255, 136, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 136, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: gridMove 20s linear infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+
+        /* Menu Screen */
+        #menu-screen {
+            position: absolute;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
+        }
+
+        #menu-screen.hidden {
+            display: none;
+        }
+
+        .game-title {
+            font-family: 'Orbitron', monospace;
+            font-size: 5rem;
+            font-weight: 900;
+            color: var(--primary);
+            text-shadow: var(--glow);
+            margin-bottom: 0.5rem;
+            letter-spacing: 0.3em;
+            animation: titlePulse 2s ease-in-out infinite;
+        }
+
+        @keyframes titlePulse {
+            0%, 100% { text-shadow: 0 0 20px var(--primary), 0 0 40px var(--primary); }
+            50% { text-shadow: 0 0 30px var(--primary), 0 0 60px var(--primary), 0 0 80px var(--primary); }
+        }
+
+        .subtitle {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.5rem;
+            color: var(--secondary);
+            letter-spacing: 0.5em;
+            margin-bottom: 3rem;
+            text-transform: uppercase;
+        }
+
+        .menu-form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+            padding: 2rem;
+            background: rgba(10, 10, 18, 0.8);
+            border: 2px solid var(--primary);
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.2);
+        }
+
+        .input-group {
+            position: relative;
+        }
+
+        .input-group input {
+            background: var(--darker);
+            border: 2px solid var(--accent);
+            padding: 1rem 2rem;
+            font-size: 1.2rem;
+            color: white;
+            font-family: 'Rajdhani', sans-serif;
+            border-radius: 5px;
+            outline: none;
+            width: 300px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .input-group input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+        }
+
+        .input-group input::placeholder {
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-play {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.5rem;
+            font-weight: 700;
+            padding: 1rem 4rem;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border: none;
+            color: var(--darker);
+            cursor: pointer;
+            border-radius: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-play:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 40px rgba(0, 255, 136, 0.5);
+        }
+
+        .btn-play::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+                45deg,
+                transparent,
+                rgba(255, 255, 255, 0.3),
+                transparent
+            );
+            transform: rotate(45deg);
+            animation: btnShine 3s infinite;
+        }
+
+        @keyframes btnShine {
+            0% { transform: translateX(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) rotate(45deg); }
+        }
+
+        .controls-info {
+            margin-top: 2rem;
+            color: rgba(255, 255, 255, 0.6);
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .controls-info h3 {
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+            font-family: 'Orbitron', monospace;
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem 2rem;
+            margin-top: 1rem;
+        }
+
+        .control-item {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .key {
+            background: var(--dark);
+            border: 1px solid var(--accent);
+            padding: 0.2rem 0.5rem;
+            border-radius: 3px;
+            font-family: 'Orbitron', monospace;
+            font-size: 0.8rem;
+            color: var(--primary);
+        }
+
+        /* Game Screen */
+        #game-screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            z-index: 10;
+        }
+
+        #game-screen.active {
+            display: flex;
+        }
+
+        /* Game Header */
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 1200px;
+            padding: 1rem 0;
+        }
+
+        .game-logo {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-shadow: 0 0 10px var(--primary);
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.9rem;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ff4444;
+            animation: pulse 1s infinite;
+        }
+
+        .status-dot.connected {
+            background: var(--primary);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Canvas Container */
+        .canvas-container {
+            position: relative;
+            border: 3px solid var(--primary);
+            border-radius: 10px;
+            box-shadow: 
+                0 0 30px rgba(0, 255, 136, 0.3),
+                inset 0 0 50px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+        }
+
+        #gameCanvas {
+            display: block;
+            background: linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 100%);
+        }
+
+        /* HUD Overlay */
+        .hud-overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+        }
+
+        .player-stats {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .stat-box {
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid var(--accent);
+            border-radius: 5px;
+            padding: 0.5rem 1rem;
+            color: white;
+            font-size: 0.9rem;
+        }
+
+        .stat-box .value {
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        /* Scoreboard */
+        .scoreboard {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid var(--accent);
+            border-radius: 10px;
+            padding: 1rem;
+            min-width: 200px;
+        }
+
+        .scoreboard h3 {
+            font-family: 'Orbitron', monospace;
+            font-size: 0.9rem;
+            color: var(--accent);
+            text-align: center;
+            margin-bottom: 0.5rem;
+            letter-spacing: 0.1em;
+        }
+
+        .scoreboard-list {
+            list-style: none;
+        }
+
+        .scoreboard-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.3rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .scoreboard-item:last-child {
+            border-bottom: none;
+        }
+
+        .player-name {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .player-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .player-score {
+            font-family: 'Orbitron', monospace;
+            color: var(--primary);
+        }
+
+        /* Game Over Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--dark);
+            border: 3px solid var(--primary);
+            border-radius: 15px;
+            padding: 3rem;
+            text-align: center;
+            box-shadow: 0 0 50px rgba(0, 255, 136, 0.4);
+            animation: modalAppear 0.5s ease-out;
+        }
+
+        @keyframes modalAppear {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .modal-content h2 {
+            font-family: 'Orbitron', monospace;
+            font-size: 3rem;
+            color: var(--primary);
+            text-shadow: var(--glow);
+            margin-bottom: 1rem;
+        }
+
+        .winner-name {
+            font-size: 2rem;
+            color: var(--secondary);
+            margin-bottom: 2rem;
+        }
+
+        .winner-stats {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .winner-stat {
+            text-align: center;
+        }
+
+        .winner-stat-value {
+            font-family: 'Orbitron', monospace;
+            font-size: 2rem;
+            color: var(--accent);
+        }
+
+        .winner-stat-label {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        /* Responsive */
+        @media (max-width: 1250px) {
+            .game-title { font-size: 3rem; }
+            .canvas-container { transform: scale(0.8); transform-origin: top center; }
+            .game-header { width: 960px; }
+        }
+        
+        /* Mobile styles */
+        @media (max-width: 900px) {
+            body {
+                overflow: auto;
+                min-height: 100vh;
+            }
+            
+            .game-title { font-size: 2rem; letter-spacing: 0.1em; }
+            .subtitle { font-size: 1rem; letter-spacing: 0.2em; margin-bottom: 1.5rem; }
+            
+            .menu-form {
+                padding: 1.5rem;
+                width: 90%;
+                max-width: 350px;
+            }
+            
+            .input-group input {
+                width: 100%;
+                padding: 0.8rem 1rem;
+                font-size: 1rem;
+            }
+            
+            .btn-play {
+                font-size: 1.2rem;
+                padding: 0.8rem 2rem;
+            }
+            
+            .controls-info {
+                display: none;
+            }
+            
+            #game-screen {
+                width: 100%;
+                padding: 0;
+            }
+            
+            .game-header {
+                width: 100%;
+                padding: 0.5rem 1rem;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+            
+            .game-logo {
+                font-size: 1rem;
+            }
+            
+            .canvas-container {
+                transform: none;
+                width: 100%;
+                border-radius: 0;
+                border-left: none;
+                border-right: none;
+            }
+            
+            #gameCanvas {
+                width: 100%;
+                height: auto;
+                max-height: 45vh;
+            }
+            
+            .scoreboard {
+                position: relative;
+                top: auto;
+                right: auto;
+                width: 100%;
+                margin-top: 0.5rem;
+                border-radius: 0;
+                padding: 0.5rem;
+                min-width: auto;
+            }
+            
+            .scoreboard h3 {
+                font-size: 0.8rem;
+            }
+            
+            .scoreboard-item {
+                font-size: 0.85rem;
+            }
+        }
+        
+        /* Mobile Touch Controls */
+        #mobile-controls {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 35vh;
+            display: flex;
+            justify-content: space-between;
+            padding: 1rem;
+            background: linear-gradient(to top, rgba(10, 10, 18, 0.95), rgba(10, 10, 18, 0.7));
+            z-index: 500;
+            touch-action: none;
+            user-select: none;
+        }
+        
+        .control-zone {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .left-zone {
+            flex: 1;
+        }
+        
+        .right-zone {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+        }
+        
+        /* D-Pad */
+        .dpad {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        
+        .dpad-middle {
+            display: flex;
+            gap: 0.3rem;
+        }
+        
+        .dpad-btn {
+            width: 60px;
+            height: 60px;
+            border: 2px solid var(--accent);
+            background: rgba(0, 170, 255, 0.2);
+            color: var(--accent);
+            font-size: 1.5rem;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: none;
+            cursor: pointer;
+            transition: all 0.1s ease;
+        }
+        
+        .dpad-btn.active,
+        .dpad-btn:active {
+            background: var(--accent);
+            color: var(--darker);
+            box-shadow: 0 0 20px var(--accent);
+            transform: scale(0.95);
+        }
+        
+        /* Action Buttons */
+        .action-btn {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            font-family: 'Orbitron', monospace;
+            font-size: 0.9rem;
+            font-weight: 700;
+            touch-action: none;
+            cursor: pointer;
+            transition: all 0.1s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .jump-btn {
+            border: 3px solid var(--primary);
+            background: rgba(0, 255, 136, 0.2);
+            color: var(--primary);
+        }
+        
+        .jump-btn.active,
+        .jump-btn:active {
+            background: var(--primary);
+            color: var(--darker);
+            box-shadow: 0 0 30px var(--primary);
+            transform: scale(0.95);
+        }
+        
+        .attack-btn {
+            border: 3px solid var(--secondary);
+            background: rgba(255, 0, 170, 0.2);
+            color: var(--secondary);
+        }
+        
+        .attack-btn.active,
+        .attack-btn:active {
+            background: var(--secondary);
+            color: var(--darker);
+            box-shadow: 0 0 30px var(--secondary);
+            transform: scale(0.95);
+        }
+        
+        /* Hide mobile controls on desktop */
+        @media (min-width: 901px) {
+            #mobile-controls {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-grid"></div>
+
+    <!-- Menu Screen -->
+    <div id="menu-screen">
+        <h1 class="game-title">BRAWLER</h1>
+        <p class="subtitle">ARENA</p>
+        
+        <div class="menu-form">
+            <div class="input-group">
+                <input type="text" id="playerName" placeholder="Wpisz swój nick" maxlength="15" autocomplete="off">
+            </div>
+            <button class="btn-play" id="playBtn">DOŁĄCZ DO GRY</button>
+        </div>
+
+        <div class="controls-info">
+            <h3>STEROWANIE</h3>
+            <div class="controls-grid">
+                <div class="control-item">
+                    <span class="key">A</span> <span class="key">D</span> lub <span class="key">←</span> <span class="key">→</span>
+                    <span>Ruch</span>
+                </div>
+                <div class="control-item">
+                    <span class="key">W</span> lub <span class="key">SPACE</span>
+                    <span>Skok (podwójny)</span>
+                </div>
+                <div class="control-item">
+                    <span class="key">S</span> lub <span class="key">↓</span>
+                    <span>Szybki spadek</span>
+                </div>
+                <div class="control-item">
+                    <span class="key">J</span> lub <span class="key">LPM</span>
+                    <span>Atak (przytrzymaj)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen">
+        <div class="game-header">
+            <div class="game-logo">BRAWLER ARENA</div>
+            <div class="connection-status">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="connectionText">Łączenie...</span>
+            </div>
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="gameCanvas" width="1200" height="800"></canvas>
+            
+            <!-- Scoreboard -->
+            <div class="scoreboard">
+                <h3>WYNIKI</h3>
+                <ul class="scoreboard-list" id="scoreboardList">
+                    <!-- Dynamic content -->
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div class="modal-overlay" id="gameOverModal">
+        <div class="modal-content">
+            <h2>ZWYCIĘSTWO!</h2>
+            <p class="winner-name" id="winnerName">-</p>
+            <div class="winner-stats">
+                <div class="winner-stat">
+                    <div class="winner-stat-value" id="winnerKills">0</div>
+                    <div class="winner-stat-label">Eliminacje</div>
+                </div>
+            </div>
+            <p style="color: rgba(255,255,255,0.5);">Nowa runda za chwilę...</p>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
