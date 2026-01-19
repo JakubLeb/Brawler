@@ -2,6 +2,7 @@ const WebSocket = require('ws');
 const express = require('express');
 const path = require('path');
 const http = require('http');
+const os = require('os');
 
 const app = express();
 const server = http.createServer(app);
@@ -61,7 +62,7 @@ const COLORS = [
 // Game State
 let players = new Map();
 let gameLoop = null;
-let gameOverInProgress = false; // Flaga zapobiegająca wielokrotnemu resetowi
+let gameOverInProgress = false;
 
 class Player {
     constructor(id, name) {
@@ -69,7 +70,6 @@ class Player {
         this.name = name || `Player${Math.floor(Math.random() * 1000)}`;
         this.color = COLORS[players.size % COLORS.length];
 
-        // Spawn position
         const spawnPoints = [
             { x: 300, y: 400 },
             { x: 900, y: 400 },
@@ -85,12 +85,12 @@ class Player {
         this.knockbackX = 0;
         this.knockbackY = 0;
 
-        this.facing = 1; // 1 = right, -1 = left
+        this.facing = 1;
         this.grounded = false;
         this.jumpCount = 0;
         this.maxJumps = 2;
 
-        this.damage = 0; // Accumulated damage (affects knockback)
+        this.damage = 0;
         this.lives = 3;
         this.kills = 0;
 
@@ -113,7 +113,6 @@ class Player {
         this.lastHitBy = null;
     }
 
-    // Pełny reset gracza do stanu początkowego nowej rundy
     fullReset(spawnIndex) {
         const spawnPoints = [
             { x: 300, y: 400 },
@@ -123,36 +122,24 @@ class Player {
         ];
         const spawn = spawnPoints[spawnIndex % spawnPoints.length];
 
-        // Reset pozycji
         this.x = spawn.x;
         this.y = spawn.y;
-
-        // Reset prędkości - WAŻNE!
         this.vx = 0;
         this.vy = 0;
-
-        // Reset knockback - TO BYŁO PRZYCZYNĄ BŁĘDU!
         this.knockbackX = 0;
         this.knockbackY = 0;
-
-        // Reset stanu ruchu
         this.grounded = false;
         this.jumpCount = 0;
         this.facing = 1;
-
-        // Reset obrażeń i żyć
         this.damage = 0;
         this.lives = 3;
         this.kills = 0;
-
-        // Reset stanu ataku
         this.isAttacking = false;
         this.attackTimer = 0;
         this.lastAttackTime = 0;
         this.chargeStart = 0;
         this.isCharging = false;
 
-        // Reset inputów
         this.input = {
             left: false,
             right: false,
@@ -162,13 +149,10 @@ class Player {
             jump: false
         };
         this.lastInput = { ...this.input };
-
-        // Reset ostatniego atakującego
         this.lastHitBy = null;
     }
 
     update(deltaTime, allPlayers) {
-        // Handle movement input
         if (this.input.left) {
             this.vx -= PLAYER_CONFIG.speed * 0.15;
             this.facing = -1;
@@ -178,7 +162,6 @@ class Player {
             this.facing = 1;
         }
 
-        // Jump logic (on key press, not hold)
         if (this.input.jump && !this.lastInput.jump) {
             if (this.grounded || this.jumpCount < this.maxJumps) {
                 this.vy = PLAYER_CONFIG.jumpForce;
@@ -187,60 +170,48 @@ class Player {
             }
         }
 
-        // Fast fall
         if (this.input.down && !this.grounded) {
             this.vy += PLAYER_CONFIG.gravity * 0.5;
         }
 
-        // Charge attack
         if (this.input.attack && !this.isCharging && !this.isAttacking) {
             this.isCharging = true;
             this.chargeStart = Date.now();
         }
 
-        // Release attack
         if (!this.input.attack && this.isCharging) {
             this.performAttack(allPlayers);
             this.isCharging = false;
         }
 
-        // Apply gravity
         this.vy += PLAYER_CONFIG.gravity;
         if (this.vy > PLAYER_CONFIG.maxFallSpeed) {
             this.vy = PLAYER_CONFIG.maxFallSpeed;
         }
 
-        // Apply friction
         const friction = this.grounded ? PLAYER_CONFIG.friction : PLAYER_CONFIG.airFriction;
         this.vx *= friction;
 
-        // Apply knockback
         this.x += this.knockbackX;
         this.y += this.knockbackY;
         this.knockbackX *= PLAYER_CONFIG.knockbackDecay;
         this.knockbackY *= PLAYER_CONFIG.knockbackDecay;
 
-        // Zeruj bardzo małe wartości knockback (zapobiega "dryfowaniu")
         if (Math.abs(this.knockbackX) < 0.1) this.knockbackX = 0;
         if (Math.abs(this.knockbackY) < 0.1) this.knockbackY = 0;
 
-        // Clamp velocity
         if (Math.abs(this.vx) > PLAYER_CONFIG.speed) {
             this.vx = Math.sign(this.vx) * PLAYER_CONFIG.speed;
         }
 
-        // Zeruj bardzo małe prędkości
         if (Math.abs(this.vx) < 0.01) this.vx = 0;
 
-        // Apply velocity
         this.x += this.vx;
         this.y += this.vy;
 
-        // Platform collision
         this.grounded = false;
         for (const platform of ARENA.platforms) {
             if (this.checkPlatformCollision(platform)) {
-                // Only land on top of platform
                 if (this.vy > 0) {
                     const playerBottom = this.y + PLAYER_CONFIG.height;
                     const platformTop = platform.y;
@@ -250,7 +221,6 @@ class Player {
                         this.x + PLAYER_CONFIG.width > platform.x &&
                         this.x < platform.x + platform.width) {
 
-                        // Allow dropping through with down key
                         if (!this.input.down) {
                             this.y = platform.y - PLAYER_CONFIG.height;
                             this.vy = 0;
@@ -262,7 +232,6 @@ class Player {
             }
         }
 
-        // Check death zone
         if (this.x < ARENA.deathZone.left ||
             this.x > ARENA.deathZone.right ||
             this.y < ARENA.deathZone.top ||
@@ -270,7 +239,6 @@ class Player {
             this.die();
         }
 
-        // Update attack timer
         if (this.isAttacking) {
             this.attackTimer -= deltaTime;
             if (this.attackTimer <= 0) {
@@ -278,7 +246,6 @@ class Player {
             }
         }
 
-        // Store last input for edge detection
         this.lastInput = { ...this.input };
     }
 
@@ -297,12 +264,10 @@ class Player {
         this.attackTimer = 200;
         this.lastAttackTime = now;
 
-        // Calculate charge multiplier
         const chargeTime = Math.min(now - this.chargeStart, PLAYER_CONFIG.maxCharge);
         const chargeMultiplier = 1 + (chargeTime / PLAYER_CONFIG.maxCharge) *
             (PLAYER_CONFIG.chargeAttackMultiplier - 1);
 
-        // Attack hitbox
         const attackX = this.facing === 1
             ? this.x + PLAYER_CONFIG.width
             : this.x - PLAYER_CONFIG.attackRange;
@@ -310,31 +275,25 @@ class Player {
         const attackWidth = PLAYER_CONFIG.attackRange;
         const attackHeight = PLAYER_CONFIG.height * 0.6;
 
-        // Check hits
         for (const [id, player] of allPlayers) {
             if (id === this.id) continue;
 
-            // Simple AABB collision
             if (attackX < player.x + PLAYER_CONFIG.width &&
                 attackX + attackWidth > player.x &&
                 attackY < player.y + PLAYER_CONFIG.height &&
                 attackY + attackHeight > player.y) {
 
-                // Apply damage
                 player.damage += PLAYER_CONFIG.attackDamage * chargeMultiplier;
 
-                // Calculate knockback (increases with damage)
                 const knockbackMultiplier = 1 + (player.damage / 100);
                 const baseKnockback = PLAYER_CONFIG.attackKnockback * chargeMultiplier;
 
-                // Knockback direction
                 const dx = player.x - this.x;
                 const angle = Math.atan2(-0.5, Math.sign(dx) || this.facing);
 
                 player.knockbackX = Math.cos(angle) * baseKnockback * knockbackMultiplier;
                 player.knockbackY = Math.sin(angle) * baseKnockback * knockbackMultiplier * 0.8;
 
-                // Track who caused damage for kill credit
                 player.lastHitBy = this.id;
             }
         }
@@ -343,7 +302,6 @@ class Player {
     die() {
         this.lives--;
 
-        // Give kill credit
         if (this.lastHitBy && players.has(this.lastHitBy)) {
             players.get(this.lastHitBy).kills++;
         }
@@ -397,7 +355,6 @@ class Player {
     }
 }
 
-// Broadcast to all clients
 function broadcast(message, excludeId = null) {
     const data = JSON.stringify(message);
     wss.clients.forEach(client => {
@@ -407,29 +364,24 @@ function broadcast(message, excludeId = null) {
     });
 }
 
-// Send to specific client
 function sendTo(ws, message) {
     if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify(message));
     }
 }
 
-// Game loop
 function gameTick() {
-    // Nie aktualizuj gry podczas resetu
     if (gameOverInProgress) return;
 
     const deltaTime = TICK_INTERVAL;
 
-    // Update all players
     for (const [id, player] of players) {
         player.update(deltaTime, players);
     }
 
-    // Check for game over
     const alivePlayers = Array.from(players.values()).filter(p => p.lives > 0);
     if (players.size > 1 && alivePlayers.length <= 1 && !gameOverInProgress) {
-        gameOverInProgress = true; // Zapobiega wielokrotnemu wywołaniu
+        gameOverInProgress = true;
 
         const winner = alivePlayers[0];
         broadcast({
@@ -437,7 +389,6 @@ function gameTick() {
             winner: winner ? winner.toJSON() : null
         });
 
-        // Reset game after 5 seconds
         setTimeout(() => {
             let spawnIndex = 0;
             for (const player of players.values()) {
@@ -445,11 +396,10 @@ function gameTick() {
                 spawnIndex++;
             }
             broadcast({ type: 'gameReset' });
-            gameOverInProgress = false; // Odblokuj grę
+            gameOverInProgress = false;
         }, 5000);
     }
 
-    // Send state to all clients
     const gameState = {
         type: 'gameState',
         players: Array.from(players.values()).map(p => p.toJSON()),
@@ -458,14 +408,12 @@ function gameTick() {
     broadcast(gameState);
 }
 
-// WebSocket connection handling
 wss.on('connection', (ws) => {
     const playerId = `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     ws.playerId = playerId;
 
     console.log(`Player connected: ${playerId}`);
 
-    // Send initial state
     sendTo(ws, {
         type: 'init',
         playerId: playerId,
@@ -521,25 +469,54 @@ wss.on('connection', (ws) => {
     });
 });
 
-// Start game loop
 gameLoop = setInterval(gameTick, TICK_INTERVAL);
 
-// Start server
+// Get local IP addresses for LAN play
+function getLocalIPs() {
+    const interfaces = os.networkInterfaces();
+    const addresses = [];
+
+    for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name]) {
+            if (iface.family === 'IPv4' && !iface.internal) {
+                addresses.push({ name, address: iface.address });
+            }
+        }
+    }
+    return addresses;
+}
+
+// Start server on all network interfaces (0.0.0.0)
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
+    const localIPs = getLocalIPs();
+
     console.log(`
 ╔══════════════════════════════════════════════════════════╗
 ║                    BRAWLER ARENA                         ║
+╠══════════════════════════════════════════════════════════╣
+║   🖥️  Server running on:                                 ║
 ║                                                          ║
-║   Server running on http://localhost:${PORT}               ║
+║   💻 Localhost:  http://localhost:${PORT}                  ║`);
+
+    localIPs.forEach(ip => {
+        console.log(`║   📱 LAN (${ip.name}): http://${ip.address}:${PORT}`);
+    });
+
+    console.log(`║                                                          ║
+╠══════════════════════════════════════════════════════════╣
+║   🎮 ABY GRAĆ NA TELEFONIE:                              ║
+║   1. Połącz telefon z tą samą siecią WiFi               ║
+║   2. Otwórz przeglądarkę na telefonie                   ║
+║   3. Wpisz adres IP z listy powyżej (np. 192.168.x.x)   ║
+╠══════════════════════════════════════════════════════════╣
+║   STEROWANIE:                                            ║
+║   - A/D lub ←/→: Ruch lewo/prawo                        ║
+║   - W/↑/Spacja: Skok (podwójny skok dostępny)           ║
+║   - S/↓: Szybki spadek / Przepadnij przez platformę    ║
+║   - J lub LPM: Atak (przytrzymaj aby naładować)         ║
 ║                                                          ║
-║   Controls:                                              ║
-║   - A/W/S/D or Arrow Keys: Move                              ║
-║   - W/Up: Jump (double jump available)         ║
-║   - S/Down: Fast fall / Drop through platforms          ║
-║   - J or space bar: Attack (hold to charge)            ║
-║                                                          ║
-║   Goal: Knock opponents off the platforms!               ║
+║   CEL: Zepchnij przeciwników z platform!                 ║
 ╚══════════════════════════════════════════════════════════╝
     `);
 });
