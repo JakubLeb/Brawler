@@ -31,17 +31,19 @@ class BrawlerGame {
 
         // Rendering
         this.particles = [];
-        this.maxParticles = 50;
+        this.maxParticles = 50; // Limit particles to prevent lag
         this.screenShake = { x: 0, y: 0, intensity: 0 };
         this.lastFrameTime = 0;
 
         // Attack animation state
-        this.attackAnimations = new Map();
+        this.attackAnimations = new Map(); // Track attack animations per player
 
         // Mobile detection
         this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
             || window.innerWidth <= 900;
         this.touchControls = null;
+        this.leftZone = null;
+        this.rightZone = null;
         this.activeTouches = new Map();
 
         // UI Elements
@@ -67,6 +69,9 @@ class BrawlerGame {
 
         // Handle resize for mobile
         window.addEventListener('resize', () => this.handleResize());
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => this.handleResize(), 100);
+        });
         this.handleResize();
     }
 
@@ -93,21 +98,34 @@ class BrawlerGame {
         this.canvas.addEventListener('mouseup', this.handleMouseUp);
         this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
-        // Touch events
+        // Touch events (for mobile controls overlay, will be set up when controls are created)
         document.addEventListener('touchstart', this.handleTouchStart, { passive: false });
         document.addEventListener('touchend', this.handleTouchEnd, { passive: false });
         document.addEventListener('touchmove', this.handleTouchMove, { passive: false });
     }
 
     showMobileControls() {
+        // Remove existing controls if any
         if (this.touchControls) {
             this.touchControls.remove();
+            this.touchControls = null;
+        }
+        if (this.leftZone) {
+            this.leftZone.remove();
+            this.leftZone = null;
+        }
+        if (this.rightZone) {
+            this.rightZone.remove();
+            this.rightZone = null;
         }
 
-        this.touchControls = document.createElement('div');
-        this.touchControls.id = 'mobile-controls';
-        this.touchControls.innerHTML = `
-            <div class="control-zone left-zone">
+        const isLandscape = window.innerWidth > window.innerHeight;
+
+        if (isLandscape) {
+            // LANDSCAPE: Create separate zones that go outside canvas-container
+            this.leftZone = document.createElement('div');
+            this.leftZone.className = 'control-zone left-zone';
+            this.leftZone.innerHTML = `
                 <div class="dpad">
                     <button class="dpad-btn up" data-action="up">▲</button>
                     <div class="dpad-middle">
@@ -116,13 +134,49 @@ class BrawlerGame {
                     </div>
                     <button class="dpad-btn down" data-action="down">▼</button>
                 </div>
-            </div>
-            <div class="control-zone right-zone">
-                <button class="action-btn attack-btn" data-action="attack">ATAK</button>
-            </div>
-        `;
+            `;
 
-        document.body.appendChild(this.touchControls);
+            this.rightZone = document.createElement('div');
+            this.rightZone.className = 'control-zone right-zone';
+            this.rightZone.innerHTML = `
+                <button class="action-btn attack-btn" data-action="attack">ATAK</button>
+            `;
+
+            // Create a wrapper for landscape mode
+            this.touchControls = document.createElement('div');
+            this.touchControls.id = 'mobile-controls';
+
+            // Insert zones into game screen in correct order
+            this.gameScreen.insertBefore(this.leftZone, this.gameScreen.firstChild);
+            this.gameScreen.appendChild(this.rightZone);
+            this.gameScreen.appendChild(this.touchControls);
+
+            // Move left and right zones into the mobile-controls container for CSS display:contents
+            this.touchControls.appendChild(this.leftZone);
+            this.touchControls.appendChild(this.rightZone);
+
+        } else {
+            // PORTRAIT: Create controls container below the canvas
+            this.touchControls = document.createElement('div');
+            this.touchControls.id = 'mobile-controls';
+            this.touchControls.innerHTML = `
+                <div class="control-zone left-zone">
+                    <div class="dpad">
+                        <button class="dpad-btn up" data-action="up">▲</button>
+                        <div class="dpad-middle">
+                            <button class="dpad-btn left" data-action="left">◄</button>
+                            <button class="dpad-btn right" data-action="right">►</button>
+                        </div>
+                        <button class="dpad-btn down" data-action="down">▼</button>
+                    </div>
+                </div>
+                <div class="control-zone right-zone">
+                    <button class="action-btn attack-btn" data-action="attack">ATAK</button>
+                </div>
+            `;
+
+            this.gameScreen.appendChild(this.touchControls);
+        }
     }
 
     handleTouchStart(e) {
@@ -156,6 +210,7 @@ class BrawlerGame {
                 e.preventDefault();
                 this.activeTouches.delete(touch.identifier);
 
+                // Find and deactivate the button
                 const btn = document.querySelector(`[data-action="${action}"]`);
                 if (btn) btn.classList.remove('active');
 
@@ -178,7 +233,9 @@ class BrawlerGame {
             const target = document.elementFromPoint(touch.clientX, touch.clientY);
             const newAction = target?.dataset?.action;
 
+            // If finger moved to different button
             if (oldAction && oldAction !== newAction) {
+                // Deactivate old action
                 const oldBtn = document.querySelector(`[data-action="${oldAction}"]`);
                 if (oldBtn) oldBtn.classList.remove('active');
 
@@ -188,6 +245,7 @@ class BrawlerGame {
                 else if (oldAction === 'down') this.input.down = false;
                 else if (oldAction === 'attack') this.input.attack = false;
 
+                // Activate new action if valid
                 if (newAction) {
                     e.preventDefault();
                     this.activeTouches.set(touch.identifier, newAction);
@@ -215,6 +273,7 @@ class BrawlerGame {
         this.menuScreen.classList.add('hidden');
         this.gameScreen.classList.add('active');
 
+        // Show mobile controls if on mobile device
         if (this.isMobile) {
             this.showMobileControls();
         }
@@ -241,6 +300,8 @@ class BrawlerGame {
         this.ws.onclose = () => {
             this.updateConnectionStatus(false);
             console.log('Disconnected from server');
+
+            // Attempt reconnect
             setTimeout(() => this.connect(), 3000);
         };
 
@@ -255,6 +316,8 @@ class BrawlerGame {
                 this.playerId = data.playerId;
                 this.arena = data.arena;
                 this.playerConfig = data.playerConfig;
+
+                // Join game
                 this.send({
                     type: 'join',
                     name: this.playerName
@@ -289,6 +352,7 @@ class BrawlerGame {
     }
 
     updateGameState(playersData) {
+        // Update players map
         const currentIds = new Set();
 
         for (const playerData of playersData) {
@@ -296,12 +360,14 @@ class BrawlerGame {
 
             const existing = this.players.get(playerData.id);
             if (existing) {
+                // Check for significant damage change (for particles) - at least 5 damage
                 const damageDiff = playerData.damage - existing.serverData.damage;
                 if (damageDiff >= 5) {
                     this.spawnHitParticles(playerData.x + 25, playerData.y + 35, playerData.color);
                     this.addScreenShake(Math.min(damageDiff / 3, 8));
                 }
 
+                // Track attack animation start
                 if (playerData.isAttacking && !existing.serverData.isAttacking) {
                     this.attackAnimations.set(playerData.id, {
                         startTime: Date.now(),
@@ -309,10 +375,12 @@ class BrawlerGame {
                     });
                 }
 
+                // Interpolate position for smooth rendering
                 existing.targetX = playerData.x;
                 existing.targetY = playerData.y;
                 existing.serverData = playerData;
             } else {
+                // New player
                 this.players.set(playerData.id, {
                     ...playerData,
                     renderX: playerData.x,
@@ -323,11 +391,13 @@ class BrawlerGame {
                 });
             }
 
+            // Update local player reference
             if (playerData.id === this.playerId) {
                 this.localPlayer = playerData;
             }
         }
 
+        // Remove disconnected players
         for (const [id] of this.players) {
             if (!currentIds.has(id)) {
                 this.players.delete(id);
@@ -335,6 +405,7 @@ class BrawlerGame {
             }
         }
 
+        // Update scoreboard
         this.updateScoreboard();
     }
 
@@ -352,7 +423,7 @@ class BrawlerGame {
                         ${data.name}
                     </span>
                     <span class="player-score">
-                        ${data.kills}K / ${data.lives}❤
+                        ${data.kills}⚔ / ${data.lives}❤
                     </span>
                 </li>
             `;
@@ -363,6 +434,7 @@ class BrawlerGame {
         if (e.repeat) return;
 
         switch (e.code) {
+            // Movement - WASD
             case 'KeyA':
                 this.input.left = true;
                 break;
@@ -376,6 +448,7 @@ class BrawlerGame {
             case 'KeyS':
                 this.input.down = true;
                 break;
+            // Attack - Space or J
             case 'Space':
                 this.input.attack = true;
                 e.preventDefault();
@@ -390,6 +463,7 @@ class BrawlerGame {
 
     handleKeyUp(e) {
         switch (e.code) {
+            // Movement - WASD
             case 'KeyA':
                 this.input.left = false;
                 break;
@@ -403,6 +477,7 @@ class BrawlerGame {
             case 'KeyS':
                 this.input.down = false;
                 break;
+            // Attack - Space or J
             case 'Space':
                 this.input.attack = false;
                 break;
@@ -415,7 +490,7 @@ class BrawlerGame {
     }
 
     handleMouseDown(e) {
-        if (e.button === 0) {
+        if (e.button === 0) { // Left click
             this.input.attack = true;
             this.sendInput();
         }
@@ -447,6 +522,10 @@ class BrawlerGame {
         this.connectionText.textContent = connected ? 'Połączono' : 'Rozłączono';
     }
 
+    // ==================
+    // RENDERING
+    // ==================
+
     gameLoop(timestamp) {
         const deltaTime = timestamp - this.lastFrameTime;
         this.lastFrameTime = timestamp;
@@ -458,12 +537,14 @@ class BrawlerGame {
     }
 
     update(deltaTime) {
+        // Interpolate player positions
         for (const [id, player] of this.players) {
             const lerp = 0.3;
             player.renderX += (player.targetX - player.renderX) * lerp;
             player.renderY += (player.targetY - player.renderY) * lerp;
         }
 
+        // Update particles
         this.particles = this.particles.filter(p => {
             p.x += p.vx;
             p.y += p.vy;
@@ -473,6 +554,7 @@ class BrawlerGame {
             return p.life > 0;
         });
 
+        // Update screen shake
         if (this.screenShake.intensity > 0) {
             this.screenShake.x = (Math.random() - 0.5) * this.screenShake.intensity;
             this.screenShake.y = (Math.random() - 0.5) * this.screenShake.intensity;
@@ -484,6 +566,7 @@ class BrawlerGame {
             }
         }
 
+        // Clean up old attack animations
         const now = Date.now();
         for (const [id, anim] of this.attackAnimations) {
             if (now - anim.startTime > anim.duration + 100) {
@@ -495,20 +578,27 @@ class BrawlerGame {
     render() {
         const ctx = this.ctx;
 
+        // Clear with shake offset
         ctx.save();
         ctx.translate(this.screenShake.x, this.screenShake.y);
 
+        // Background
         this.drawBackground();
 
+        // Platforms
         if (this.arena) {
             this.drawPlatforms();
         }
 
+        // Players
         for (const [id, player] of this.players) {
             this.drawPlayer(player);
         }
 
+        // Particles
         this.drawParticles();
+
+        // Death zone indicator
         this.drawDeathZoneIndicator();
 
         ctx.restore();
@@ -517,6 +607,7 @@ class BrawlerGame {
     drawBackground() {
         const ctx = this.ctx;
 
+        // Gradient background
         const gradient = ctx.createLinearGradient(0, 0, 0, this.canvas.height);
         gradient.addColorStop(0, '#1a1a2e');
         gradient.addColorStop(0.5, '#16213e');
@@ -524,6 +615,7 @@ class BrawlerGame {
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
+        // Grid lines
         ctx.strokeStyle = 'rgba(0, 255, 136, 0.05)';
         ctx.lineWidth = 1;
 
@@ -546,9 +638,11 @@ class BrawlerGame {
         const ctx = this.ctx;
 
         for (const platform of this.arena.platforms) {
+            // Platform glow
             ctx.shadowColor = '#00ff88';
             ctx.shadowBlur = 15;
 
+            // Main platform
             const gradient = ctx.createLinearGradient(
                 platform.x, platform.y,
                 platform.x, platform.y + platform.height
@@ -568,9 +662,11 @@ class BrawlerGame {
             ctx.fillStyle = gradient;
             ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
 
+            // Platform top highlight
             ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
             ctx.fillRect(platform.x, platform.y, platform.width, 3);
 
+            // Platform edge glow
             ctx.shadowBlur = 0;
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
             ctx.lineWidth = 2;
@@ -586,37 +682,45 @@ class BrawlerGame {
         const w = this.playerConfig?.width || 50;
         const h = this.playerConfig?.height || 70;
 
+        // Don't draw dead players
         if (data.lives <= 0) return;
 
         ctx.save();
 
+        // Player glow
         ctx.shadowColor = data.color;
         ctx.shadowBlur = data.isAttacking ? 30 : 15;
 
+        // Body
         const bodyGradient = ctx.createLinearGradient(x, y, x, y + h);
         bodyGradient.addColorStop(0, data.color);
         bodyGradient.addColorStop(1, this.darkenColor(data.color, 40));
         ctx.fillStyle = bodyGradient;
 
+        // Rounded rectangle body
         this.roundRect(ctx, x, y, w, h, 8);
         ctx.fill();
 
+        // Face direction indicator
         ctx.shadowBlur = 0;
         const eyeX = data.facing === 1 ? x + w - 18 : x + 8;
         const eyeY = y + 20;
 
+        // Eyes
         ctx.fillStyle = '#fff';
         ctx.beginPath();
         ctx.arc(eyeX, eyeY, 6, 0, Math.PI * 2);
         ctx.arc(eyeX + (data.facing === 1 ? -12 : 12), eyeY, 6, 0, Math.PI * 2);
         ctx.fill();
 
+        // Pupils
         ctx.fillStyle = '#000';
         ctx.beginPath();
         ctx.arc(eyeX + data.facing * 2, eyeY, 3, 0, Math.PI * 2);
         ctx.arc(eyeX + (data.facing === 1 ? -12 : 12) + data.facing * 2, eyeY, 3, 0, Math.PI * 2);
         ctx.fill();
 
+        // Charge indicator
         if (data.isCharging) {
             const chargeWidth = w * data.chargeProgress;
             ctx.fillStyle = 'rgba(255, 255, 0, 0.8)';
@@ -626,21 +730,25 @@ class BrawlerGame {
             ctx.strokeRect(x, y - 10, w, 5);
         }
 
+        // Attack effect - animated fist/arm
         if (data.isAttacking) {
             this.drawAttackArm(ctx, x, y, w, h, data.facing, data.color, data.id);
         }
 
+        // Player name
         ctx.shadowBlur = 0;
         ctx.font = 'bold 14px Rajdhani';
         ctx.textAlign = 'center';
         ctx.fillStyle = '#fff';
         ctx.fillText(data.name, x + w/2, y - 25);
 
+        // Damage percentage
         const damageColor = this.getDamageColor(data.damage);
         ctx.font = 'bold 18px Orbitron';
         ctx.fillStyle = damageColor;
         ctx.fillText(`${Math.round(data.damage)}%`, x + w/2, y - 8);
 
+        // Lives indicator
         ctx.font = '12px sans-serif';
         for (let i = 0; i < data.lives; i++) {
             ctx.fillText('❤', x + 8 + i * 15, y + h + 15);
@@ -650,6 +758,7 @@ class BrawlerGame {
     }
 
     drawAttackArm(ctx, x, y, w, h, facing, color, playerId) {
+        // Get animation progress
         const anim = this.attackAnimations.get(playerId);
         let progress = 1;
 
@@ -658,18 +767,22 @@ class BrawlerGame {
             progress = Math.min(elapsed / anim.duration, 1);
         }
 
+        // Animation: arm extends out then retracts
+        // Progress 0-0.3: extend, 0.3-1: retract
         let extension;
         if (progress < 0.3) {
-            extension = progress / 0.3;
+            extension = progress / 0.3; // 0 to 1
         } else {
-            extension = 1 - ((progress - 0.3) / 0.7);
+            extension = 1 - ((progress - 0.3) / 0.7); // 1 to 0
         }
 
+        // Easing for smoother animation
         extension = Math.sin(extension * Math.PI / 2);
 
         const armLength = 50 * extension;
-        const fistSize = 18 + 8 * extension;
+        const fistSize = 18 + 8 * extension; // Fist gets bigger as it extends
 
+        // Arm position
         const shoulderY = y + h * 0.35;
         const armStartX = facing === 1 ? x + w : x;
         const armEndX = armStartX + (armLength * facing);
@@ -677,9 +790,11 @@ class BrawlerGame {
 
         ctx.save();
 
+        // Arm glow effect
         ctx.shadowColor = '#ffff00';
         ctx.shadowBlur = 15 * extension;
 
+        // Draw arm (rectangle)
         const armWidth = 12;
         ctx.fillStyle = this.lightenColor(color, 20);
         ctx.strokeStyle = '#ffffff';
@@ -698,10 +813,13 @@ class BrawlerGame {
             ctx.stroke();
         }
 
+        // Draw fist (rounded square)
         if (extension > 0.1) {
+            // Fist glow intensifies with extension
             ctx.shadowColor = extension > 0.5 ? '#ff8800' : '#ffff00';
             ctx.shadowBlur = 20 * extension;
 
+            // Fist gradient
             const fistGradient = ctx.createRadialGradient(
                 fistX, shoulderY, 0,
                 fistX, shoulderY, fistSize
@@ -712,6 +830,7 @@ class BrawlerGame {
 
             ctx.fillStyle = fistGradient;
 
+            // Draw fist shape
             ctx.beginPath();
             this.roundRect(
                 ctx,
@@ -723,10 +842,12 @@ class BrawlerGame {
             );
             ctx.fill();
 
+            // Fist outline
             ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 2;
             ctx.stroke();
 
+            // Knuckle details
             ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
             const knuckleY = shoulderY - fistSize/4;
             for (let i = 0; i < 3; i++) {
@@ -736,6 +857,7 @@ class BrawlerGame {
                 ctx.fill();
             }
 
+            // Impact lines when fully extended
             if (extension > 0.8) {
                 ctx.strokeStyle = `rgba(255, 255, 0, ${extension - 0.8})`;
                 ctx.lineWidth = 2;
@@ -782,11 +904,13 @@ class BrawlerGame {
         const ctx = this.ctx;
         const dz = this.arena.deathZone;
 
+        // Pulsing danger zone edges
         const pulse = Math.sin(Date.now() / 200) * 0.3 + 0.5;
         ctx.strokeStyle = `rgba(255, 0, 0, ${pulse})`;
         ctx.lineWidth = 3;
         ctx.setLineDash([10, 10]);
 
+        // Left edge
         if (dz.left > -50) {
             ctx.beginPath();
             ctx.moveTo(dz.left, 0);
@@ -794,6 +918,7 @@ class BrawlerGame {
             ctx.stroke();
         }
 
+        // Right edge
         if (dz.right < this.canvas.width + 50) {
             ctx.beginPath();
             ctx.moveTo(dz.right, 0);
@@ -804,7 +929,12 @@ class BrawlerGame {
         ctx.setLineDash([]);
     }
 
+    // ==================
+    // EFFECTS
+    // ==================
+
     spawnHitParticles(x, y, color) {
+        // Limit total particles to prevent lag
         const particlesToSpawn = Math.min(8, this.maxParticles - this.particles.length);
         if (particlesToSpawn <= 0) return;
 
@@ -849,6 +979,10 @@ class BrawlerGame {
         this.gameOverModal.classList.remove('active');
     }
 
+    // ==================
+    // UTILITIES
+    // ==================
+
     roundRect(ctx, x, y, width, height, radius) {
         ctx.beginPath();
         ctx.moveTo(x + radius, y);
@@ -889,6 +1023,7 @@ class BrawlerGame {
     }
 }
 
+// Start the game when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     window.game = new BrawlerGame();
 });
