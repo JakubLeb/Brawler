@@ -111,6 +111,10 @@ class Player {
 
         this.lastInput = { ...this.input };
         this.lastHitBy = null;
+
+        // Flaga nietykalności po respawnie
+        this.invulnerable = false;
+        this.invulnerableTimer = 0;
     }
 
     fullReset(spawnIndex) {
@@ -139,6 +143,8 @@ class Player {
         this.lastAttackTime = 0;
         this.chargeStart = 0;
         this.isCharging = false;
+        this.invulnerable = false;
+        this.invulnerableTimer = 0;
 
         this.input = {
             left: false,
@@ -152,7 +158,22 @@ class Player {
         this.lastHitBy = null;
     }
 
+    isAlive() {
+        return this.lives > 0;
+    }
+
     update(deltaTime, allPlayers) {
+        // Nie aktualizuj martwych graczy
+        if (!this.isAlive()) return;
+
+        // Aktualizuj timer nietykalności
+        if (this.invulnerable) {
+            this.invulnerableTimer -= deltaTime;
+            if (this.invulnerableTimer <= 0) {
+                this.invulnerable = false;
+            }
+        }
+
         if (this.input.left) {
             this.vx -= PLAYER_CONFIG.speed * 0.15;
             this.facing = -1;
@@ -278,6 +299,9 @@ class Player {
         for (const [id, player] of allPlayers) {
             if (id === this.id) continue;
 
+            // WAŻNE: Nie atakuj martwych graczy ani nietykalnych
+            if (!player.isAlive() || player.invulnerable) continue;
+
             if (attackX < player.x + PLAYER_CONFIG.width &&
                 attackX + attackWidth > player.x &&
                 attackY < player.y + PLAYER_CONFIG.height &&
@@ -300,6 +324,9 @@ class Player {
     }
 
     die() {
+        // Zapobiegaj wielokrotnemu wywołaniu die() w tym samym ticku
+        if (this.lives <= 0) return;
+
         this.lives--;
 
         if (this.lastHitBy && players.has(this.lastHitBy)) {
@@ -330,6 +357,10 @@ class Player {
         this.damage = 0;
         this.isAttacking = false;
         this.isCharging = false;
+
+        // Nietykalność po respawnie (1.5 sekundy)
+        this.invulnerable = true;
+        this.invulnerableTimer = 1500;
     }
 
     toJSON() {
@@ -343,14 +374,15 @@ class Player {
             vy: this.vy,
             facing: this.facing,
             grounded: this.grounded,
-            damage: Math.round(this.damage),
-            lives: this.lives,
+            damage: Math.max(0, Math.round(this.damage)), // Upewnij się, że damage nie jest ujemny
+            lives: Math.max(0, this.lives), // Upewnij się, że lives nie jest ujemny
             kills: this.kills,
             isAttacking: this.isAttacking,
             isCharging: this.isCharging,
             chargeProgress: this.isCharging
                 ? Math.min((Date.now() - this.chargeStart) / PLAYER_CONFIG.maxCharge, 1)
-                : 0
+                : 0,
+            invulnerable: this.invulnerable
         };
     }
 }
@@ -375,15 +407,24 @@ function gameTick() {
 
     const deltaTime = TICK_INTERVAL;
 
+    // Najpierw aktualizuj wszystkich graczy
     for (const [id, player] of players) {
         player.update(deltaTime, players);
     }
 
-    const alivePlayers = Array.from(players.values()).filter(p => p.lives > 0);
-    if (players.size > 1 && alivePlayers.length <= 1 && !gameOverInProgress) {
+    // Potem sprawdź warunki końca gry
+    // Policz żywych graczy (lives > 0)
+    const alivePlayers = Array.from(players.values()).filter(p => p.isAlive());
+    const totalPlayers = players.size;
+
+    // Gra kończy się gdy:
+    // - Jest więcej niż 1 gracz w grze
+    // - Pozostał tylko 1 (lub 0) żywych graczy
+    if (totalPlayers > 1 && alivePlayers.length <= 1 && !gameOverInProgress) {
         gameOverInProgress = true;
 
-        const winner = alivePlayers[0];
+        const winner = alivePlayers.length === 1 ? alivePlayers[0] : null;
+
         broadcast({
             type: 'gameOver',
             winner: winner ? winner.toJSON() : null
@@ -445,7 +486,7 @@ wss.on('connection', (ws) => {
 
                 case 'input':
                     const p = players.get(playerId);
-                    if (p) {
+                    if (p && p.isAlive()) { // Tylko żywi gracze mogą wysyłać input
                         p.input = data.input;
                     }
                     break;
