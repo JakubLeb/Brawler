@@ -11,6 +11,7 @@ class BrawlerGame {
         this.ws = null;
         this.playerId = null;
         this.playerName = '';
+        this.selectedColor = '#FF6B6B'; // Default color
 
         // Game state
         this.arena = null;
@@ -66,6 +67,7 @@ class BrawlerGame {
 
         // Initialize
         this.setupEventListeners();
+        this.setupColorPicker();
 
         // Handle resize for mobile
         window.addEventListener('resize', () => this.handleResize());
@@ -73,6 +75,20 @@ class BrawlerGame {
             setTimeout(() => this.handleResize(), 100);
         });
         this.handleResize();
+    }
+
+    setupColorPicker() {
+        const colorOptions = document.querySelectorAll('.color-option');
+        colorOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                // Remove selected class from all
+                colorOptions.forEach(opt => opt.classList.remove('selected'));
+                // Add selected class to clicked
+                option.classList.add('selected');
+                // Store selected color
+                this.selectedColor = option.dataset.color;
+            });
+        });
     }
 
     handleResize() {
@@ -317,10 +333,11 @@ class BrawlerGame {
                 this.arena = data.arena;
                 this.playerConfig = data.playerConfig;
 
-                // Join game
+                // Join game with selected color
                 this.send({
                     type: 'join',
-                    name: this.playerName
+                    name: this.playerName,
+                    color: this.selectedColor
                 });
                 break;
 
@@ -417,13 +434,13 @@ class BrawlerGame {
             const data = p.serverData;
             const isLocal = data.id === this.playerId;
             return `
-                <li class="scoreboard-item" style="${isLocal ? 'background: rgba(0,255,136,0.1);' : ''}">
+                <li class="scoreboard-item ${isLocal ? 'local-player' : ''}">
                     <span class="player-name">
                         <span class="player-color" style="background: ${data.color}"></span>
-                        ${data.name}
+                        <span class="player-name-text">${data.name}</span>
                     </span>
                     <span class="player-score">
-                        ${data.kills}⚔ / ${data.lives}❤
+                        ${data.kills}⚔ ${data.lives}❤
                     </span>
                 </li>
             `;
@@ -1000,7 +1017,9 @@ class BrawlerGame {
         if (damage < 50) return '#ffffff';
         if (damage < 100) return '#ffff00';
         if (damage < 150) return '#ff8800';
-        return '#ff0000';
+        if (damage < 200) return '#ff0000';
+        if (damage < 300) return '#ff00ff'; // Purple for 200%+
+        return '#00ffff'; // Cyan for 300%+
     }
 }
 

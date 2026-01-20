@@ -56,7 +56,8 @@ const PLAYER_CONFIG = {
 
 const COLORS = [
     '#FF6B6B', '#4ECDC4', '#FFE66D', '#95E1D3',
-    '#F38181', '#AA96DA', '#FCBAD3', '#A8D8EA'
+    '#F38181', '#AA96DA', '#FCBAD3', '#A8D8EA',
+    '#FF9F43', '#6C5CE7', '#00FF88', '#FF00AA'
 ];
 
 // Game State
@@ -65,10 +66,11 @@ let gameLoop = null;
 let gameOverInProgress = false;
 
 class Player {
-    constructor(id, name) {
+    constructor(id, name, color) {
         this.id = id;
         this.name = name || `Player${Math.floor(Math.random() * 1000)}`;
-        this.color = COLORS[players.size % COLORS.length];
+        // Use provided color or assign from palette
+        this.color = color || COLORS[players.size % COLORS.length];
 
         const spawnPoints = [
             { x: 300, y: 400 },
@@ -111,10 +113,6 @@ class Player {
 
         this.lastInput = { ...this.input };
         this.lastHitBy = null;
-
-        // Flaga nietykalności po respawnie
-        this.invulnerable = false;
-        this.invulnerableTimer = 0;
     }
 
     fullReset(spawnIndex) {
@@ -143,8 +141,6 @@ class Player {
         this.lastAttackTime = 0;
         this.chargeStart = 0;
         this.isCharging = false;
-        this.invulnerable = false;
-        this.invulnerableTimer = 0;
 
         this.input = {
             left: false,
@@ -158,22 +154,7 @@ class Player {
         this.lastHitBy = null;
     }
 
-    isAlive() {
-        return this.lives > 0;
-    }
-
     update(deltaTime, allPlayers) {
-        // Nie aktualizuj martwych graczy
-        if (!this.isAlive()) return;
-
-        // Aktualizuj timer nietykalności
-        if (this.invulnerable) {
-            this.invulnerableTimer -= deltaTime;
-            if (this.invulnerableTimer <= 0) {
-                this.invulnerable = false;
-            }
-        }
-
         if (this.input.left) {
             this.vx -= PLAYER_CONFIG.speed * 0.15;
             this.facing = -1;
@@ -277,6 +258,33 @@ class Player {
             this.y + PLAYER_CONFIG.height > platform.y;
     }
 
+    // Calculate knockback multiplier based on damage percentage
+    // Increases significantly at 100%, 200%, 300% thresholds
+    calculateKnockbackMultiplier(damage) {
+        // Base multiplier from damage (linear component)
+        let multiplier = 1 + (damage / 100);
+
+        // Add bonus multipliers at damage thresholds
+        if (damage >= 100) {
+            // At 100%+: additional 0.5x bonus
+            multiplier += 0.5;
+        }
+        if (damage >= 200) {
+            // At 200%+: additional 0.75x bonus (total 1.25x extra)
+            multiplier += 0.75;
+        }
+        if (damage >= 300) {
+            // At 300%+: additional 1.0x bonus (total 2.25x extra)
+            multiplier += 1.0;
+        }
+        if (damage >= 400) {
+            // At 400%+: additional 1.5x bonus (total 3.75x extra)
+            multiplier += 1.5;
+        }
+
+        return multiplier;
+    }
+
     performAttack(allPlayers) {
         const now = Date.now();
         if (now - this.lastAttackTime < PLAYER_CONFIG.attackCooldown) return;
@@ -299,9 +307,6 @@ class Player {
         for (const [id, player] of allPlayers) {
             if (id === this.id) continue;
 
-            // WAŻNE: Nie atakuj martwych graczy ani nietykalnych
-            if (!player.isAlive() || player.invulnerable) continue;
-
             if (attackX < player.x + PLAYER_CONFIG.width &&
                 attackX + attackWidth > player.x &&
                 attackY < player.y + PLAYER_CONFIG.height &&
@@ -309,7 +314,8 @@ class Player {
 
                 player.damage += PLAYER_CONFIG.attackDamage * chargeMultiplier;
 
-                const knockbackMultiplier = 1 + (player.damage / 100);
+                // Use the new knockback calculation with threshold bonuses
+                const knockbackMultiplier = this.calculateKnockbackMultiplier(player.damage);
                 const baseKnockback = PLAYER_CONFIG.attackKnockback * chargeMultiplier;
 
                 const dx = player.x - this.x;
@@ -324,9 +330,6 @@ class Player {
     }
 
     die() {
-        // Zapobiegaj wielokrotnemu wywołaniu die() w tym samym ticku
-        if (this.lives <= 0) return;
-
         this.lives--;
 
         if (this.lastHitBy && players.has(this.lastHitBy)) {
@@ -357,10 +360,6 @@ class Player {
         this.damage = 0;
         this.isAttacking = false;
         this.isCharging = false;
-
-        // Nietykalność po respawnie (1.5 sekundy)
-        this.invulnerable = true;
-        this.invulnerableTimer = 1500;
     }
 
     toJSON() {
@@ -374,15 +373,14 @@ class Player {
             vy: this.vy,
             facing: this.facing,
             grounded: this.grounded,
-            damage: Math.max(0, Math.round(this.damage)), // Upewnij się, że damage nie jest ujemny
-            lives: Math.max(0, this.lives), // Upewnij się, że lives nie jest ujemny
+            damage: Math.round(this.damage),
+            lives: this.lives,
             kills: this.kills,
             isAttacking: this.isAttacking,
             isCharging: this.isCharging,
             chargeProgress: this.isCharging
                 ? Math.min((Date.now() - this.chargeStart) / PLAYER_CONFIG.maxCharge, 1)
-                : 0,
-            invulnerable: this.invulnerable
+                : 0
         };
     }
 }
@@ -407,24 +405,15 @@ function gameTick() {
 
     const deltaTime = TICK_INTERVAL;
 
-    // Najpierw aktualizuj wszystkich graczy
     for (const [id, player] of players) {
         player.update(deltaTime, players);
     }
 
-    // Potem sprawdź warunki końca gry
-    // Policz żywych graczy (lives > 0)
-    const alivePlayers = Array.from(players.values()).filter(p => p.isAlive());
-    const totalPlayers = players.size;
-
-    // Gra kończy się gdy:
-    // - Jest więcej niż 1 gracz w grze
-    // - Pozostał tylko 1 (lub 0) żywych graczy
-    if (totalPlayers > 1 && alivePlayers.length <= 1 && !gameOverInProgress) {
+    const alivePlayers = Array.from(players.values()).filter(p => p.lives > 0);
+    if (players.size > 1 && alivePlayers.length <= 1 && !gameOverInProgress) {
         gameOverInProgress = true;
 
-        const winner = alivePlayers.length === 1 ? alivePlayers[0] : null;
-
+        const winner = alivePlayers[0];
         broadcast({
             type: 'gameOver',
             winner: winner ? winner.toJSON() : null
@@ -468,7 +457,8 @@ wss.on('connection', (ws) => {
 
             switch (data.type) {
                 case 'join':
-                    const player = new Player(playerId, data.name);
+                    // Accept color from client
+                    const player = new Player(playerId, data.name, data.color);
                     players.set(playerId, player);
 
                     sendTo(ws, {
@@ -481,12 +471,12 @@ wss.on('connection', (ws) => {
                         player: player.toJSON()
                     }, playerId);
 
-                    console.log(`${player.name} joined the game`);
+                    console.log(`${player.name} joined the game with color ${player.color}`);
                     break;
 
                 case 'input':
                     const p = players.get(playerId);
-                    if (p && p.isAlive()) { // Tylko żywi gracze mogą wysyłać input
+                    if (p) {
                         p.input = data.input;
                     }
                     break;

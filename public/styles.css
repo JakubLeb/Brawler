@@ -137,8 +137,68 @@ body {
     color: rgba(255, 255, 255, 0.3);
 }
 
-.btn-play {
+/* ================================
+   Color Picker
+   ================================ */
+
+.color-picker {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.8rem;
+}
+
+.color-picker label {
+    color: var(--accent);
     font-family: 'Orbitron', monospace;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.color-options {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+    max-width: 280px;
+}
+
+.color-option {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 3px solid transparent;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.color-option:hover {
+    transform: scale(1.15);
+    box-shadow: 0 0 15px currentColor;
+}
+
+.color-option.selected {
+    border-color: #fff;
+    transform: scale(1.2);
+    box-shadow: 0 0 20px currentColor, 0 0 30px currentColor;
+}
+
+.color-option.selected::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #000;
+    font-weight: bold;
+    font-size: 1.2rem;
+    text-shadow: 0 0 2px #fff;
+}
+
+.btn-play {
+    font-family: Arial, sans-serif;
     font-size: 1.5rem;
     font-weight: 700;
     padding: 1rem 4rem;
@@ -343,7 +403,7 @@ body {
     border: 2px solid var(--accent);
     border-radius: 10px;
     padding: 1rem;
-    min-width: 200px;
+    min-width: 220px;
 }
 
 .scoreboard h3 {
@@ -363,29 +423,39 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.3rem 0;
+    padding: 0.4rem 0.3rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
 }
 
 .scoreboard-item:last-child {
     border-bottom: none;
 }
 
+.scoreboard-item.local-player {
+    background: rgba(0, 255, 136, 0.15);
+    border: 1px solid rgba(0, 255, 136, 0.3);
+}
+
 .player-name {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    font-weight: 600;
+    color: #fff;
 }
 
 .player-color {
-    width: 12px;
-    height: 12px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
 .player-score {
     font-family: 'Orbitron', monospace;
     color: var(--primary);
+    font-size: 0.85rem;
 }
 
 /* ================================
@@ -523,6 +593,15 @@ body {
         font-size: 1rem;
     }
 
+    .color-options {
+        max-width: 260px;
+    }
+
+    .color-option {
+        width: 35px;
+        height: 35px;
+    }
+
     .btn-play {
         font-size: 1.2rem;
         padding: 0.8rem 2rem;
@@ -557,7 +636,7 @@ body {
         top: 5px;
         right: 5px;
         padding: 0.5rem;
-        min-width: 120px;
+        min-width: 130px;
         font-size: 0.75rem;
         z-index: 100;
         background: rgba(0, 0, 0, 0.85);
