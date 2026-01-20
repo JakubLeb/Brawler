@@ -12,7 +12,7 @@ const wss = new WebSocket.Server({ server });
 app.use(express.static(path.join(__dirname, '../public')));
 
 // Game Constants
-const TICK_RATE = 60;
+const TICK_RATE = 64;
 const TICK_INTERVAL = 1000 / TICK_RATE;
 
 const ARENA = {
@@ -495,28 +495,16 @@ server.listen(PORT, '0.0.0.0', () => {
 ╔══════════════════════════════════════════════════════════╗
 ║                    BRAWLER ARENA                         ║
 ╠══════════════════════════════════════════════════════════╣
-║   🖥️  Server running on:                                 ║
+║   Server running on:                                     ║
 ║                                                          ║
-║   💻 Localhost:  http://localhost:${PORT}                  ║`);
+║   Localhost:  http://localhost:${PORT}                  ║`);
 
     localIPs.forEach(ip => {
         console.log(`║   📱 LAN (${ip.name}): http://${ip.address}:${PORT}`);
     });
 
-    console.log(`║                                                          ║
-╠══════════════════════════════════════════════════════════╣
-║   🎮 ABY GRAĆ NA TELEFONIE:                              ║
-║   1. Połącz telefon z tą samą siecią WiFi               ║
-║   2. Otwórz przeglądarkę na telefonie                   ║
-║   3. Wpisz adres IP z listy powyżej (np. 192.168.x.x)   ║
-╠══════════════════════════════════════════════════════════╣
-║   STEROWANIE:                                            ║
-║   - A/D lub ←/→: Ruch lewo/prawo                        ║
-║   - W/↑/Spacja: Skok (podwójny skok dostępny)           ║
-║   - S/↓: Szybki spadek / Przepadnij przez platformę    ║
-║   - J lub LPM: Atak (przytrzymaj aby naładować)         ║
+    console.log(`║                                         
 ║                                                          ║
-║   CEL: Zepchnij przeciwników z platform!                 ║
 ╚══════════════════════════════════════════════════════════╝
     `);
 });

@@ -638,11 +638,7 @@ class BrawlerGame {
         const ctx = this.ctx;
 
         for (const platform of this.arena.platforms) {
-            // Platform glow
-            ctx.shadowColor = '#00ff88';
-            ctx.shadowBlur = 15;
-
-            // Main platform
+            // Main platform (bez poświaty)
             const gradient = ctx.createLinearGradient(
                 platform.x, platform.y,
                 platform.x, platform.y + platform.height
@@ -666,8 +662,7 @@ class BrawlerGame {
             ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
             ctx.fillRect(platform.x, platform.y, platform.width, 3);
 
-            // Platform edge glow
-            ctx.shadowBlur = 0;
+            // Platform edge (bez poświaty)
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
             ctx.lineWidth = 2;
             ctx.strokeRect(platform.x, platform.y, platform.width, platform.height);
@@ -687,11 +682,7 @@ class BrawlerGame {
 
         ctx.save();
 
-        // Player glow
-        ctx.shadowColor = data.color;
-        ctx.shadowBlur = data.isAttacking ? 30 : 15;
-
-        // Body
+        // Body (bez poświaty - usunięto shadowColor i shadowBlur)
         const bodyGradient = ctx.createLinearGradient(x, y, x, y + h);
         bodyGradient.addColorStop(0, data.color);
         bodyGradient.addColorStop(1, this.darkenColor(data.color, 40));
@@ -702,7 +693,6 @@ class BrawlerGame {
         ctx.fill();
 
         // Face direction indicator
-        ctx.shadowBlur = 0;
         const eyeX = data.facing === 1 ? x + w - 18 : x + 8;
         const eyeY = y + 20;
 
@@ -736,7 +726,6 @@ class BrawlerGame {
         }
 
         // Player name
-        ctx.shadowBlur = 0;
         ctx.font = 'bold 14px Rajdhani';
         ctx.textAlign = 'center';
         ctx.fillStyle = '#fff';
@@ -790,11 +779,7 @@ class BrawlerGame {
 
         ctx.save();
 
-        // Arm glow effect
-        ctx.shadowColor = '#ffff00';
-        ctx.shadowBlur = 15 * extension;
-
-        // Draw arm (rectangle)
+        // Draw arm (rectangle) - bez poświaty
         const armWidth = 12;
         ctx.fillStyle = this.lightenColor(color, 20);
         ctx.strokeStyle = '#ffffff';
@@ -813,12 +798,8 @@ class BrawlerGame {
             ctx.stroke();
         }
 
-        // Draw fist (rounded square)
+        // Draw fist (rounded square) - bez poświaty
         if (extension > 0.1) {
-            // Fist glow intensifies with extension
-            ctx.shadowColor = extension > 0.5 ? '#ff8800' : '#ffff00';
-            ctx.shadowBlur = 20 * extension;
-
             // Fist gradient
             const fistGradient = ctx.createRadialGradient(
                 fistX, shoulderY, 0,
@@ -857,7 +838,7 @@ class BrawlerGame {
                 ctx.fill();
             }
 
-            // Impact lines when fully extended
+            // Impact lines when fully extended (bez poświaty)
             if (extension > 0.8) {
                 ctx.strokeStyle = `rgba(255, 255, 0, ${extension - 0.8})`;
                 ctx.lineWidth = 2;
